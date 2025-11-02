@@ -6,7 +6,8 @@
   <title>Utdelningsportfölj - Enkel version</title>
   <style>
     body { max-width:900px; margin:30px auto; padding:20px; background:#1e1e1e; color:#f0f0f0; font-family:Inter,sans-serif; border-radius:10px; }
-    h1 { margin-bottom:20px; }
+    h1 { margin-bottom:5px; }
+    .note { font-size:0.85em; color:#ccc; margin-bottom:20px; }
     form { display:grid; grid-template-columns:1fr 80px 100px 100px 150px 150px auto; gap:10px; align-items:end; margin-bottom:20px; }
     input, select, button { padding:8px; border-radius:6px; border:1px solid #555; background:#2a2a2a; color:#fff; font-family:inherit; font-size:14px; }
     button { border:0; background:#2563eb; cursor:pointer; }
@@ -29,6 +30,7 @@
 </head>
 <body>
   <h1>Utdelningsportfölj</h1>
+  <div class="note">Diverse källskatter är INTE medräknade</div>
 
   <form id="portfolioForm">
     <input id="company" placeholder="Bolag" required />
