@@ -98,13 +98,17 @@
       'DKK':'https://flagcdn.com/dk.svg'
     };
 
-    let portfolio = [];
+    let portfolio = JSON.parse(localStorage.getItem('portfolio') || '[]');
 
     const tbody = document.querySelector('#portfolioTable tbody');
     const totalCell = document.getElementById('total');
     const monthSums = document.getElementById('monthSums');
     const tooltip = document.getElementById('tooltip');
     const form = document.getElementById('portfolioForm');
+
+    function savePortfolio() {
+      localStorage.setItem('portfolio', JSON.stringify(portfolio));
+    }
 
     function renderTable() {
       tbody.innerHTML = '';
@@ -140,6 +144,7 @@
 
         tr.querySelector('.delete-btn').addEventListener('click', () => {
           portfolio.splice(index, 1);
+          savePortfolio();
           renderTable();
         });
 
@@ -149,7 +154,13 @@
               e.preventDefault();
               const field = cell.dataset.field;
               const newVal = parseFloat(cell.textContent);
-              if (!isNaN(newVal) && newVal >= 0) { item[field] = newVal; renderTable(); } else { cell.textContent = item[field]; }
+              if (!isNaN(newVal) && newVal >= 0) {
+                item[field] = newVal;
+                savePortfolio();
+                renderTable();
+              } else {
+                cell.textContent = item[field];
+              }
             }
           });
         });
@@ -162,32 +173,4 @@
       monthSums.innerHTML = '';
       monthTotals.forEach((val, i) => {
         const monthDiv = document.createElement('div');
-        monthDiv.textContent = `${['Jan','Feb','Mar','Apr','Maj','Jun','Jul','Aug','Sep','Okt','Nov','Dec'][i]}: ${val.toFixed(2)} SEK`;
-        monthDiv.addEventListener('mouseenter', e => {
-          tooltip.style.display = 'block';
-          tooltip.style.left = e.pageX + 10 + 'px';
-          tooltip.style.top = e.pageY + 10 + 'px';
-          tooltip.innerHTML = monthDetails[i].join('<br>');
-        });
-        monthDiv.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
-        monthSums.appendChild(monthDiv);
-      });
-    }
-
-    form.addEventListener('submit', e => {
-      e.preventDefault();
-      const company = document.getElementById('company').value;
-      const shares = parseFloat(document.getElementById('shares').value);
-      const dividend = parseFloat(document.getElementById('dividend').value);
-      const freq = parseInt(document.getElementById('frequency').value);
-      const currency = document.getElementById('currency').value;
-      const monthCheckboxes = document.querySelectorAll('#months input[type=checkbox]:checked');
-      const selectedMonths = Array.from(monthCheckboxes).map(cb => parseInt(cb.value));
-
-      portfolio.push({ company, shares, dividend, freq, currency, months: selectedMonths });
-      renderTable();
-      form.reset();
-    });
-  </script>
-</body>
-</html>
+        monthDiv.textContent = `${['Jan','Feb','Mar','Apr','Maj','Jun','Jul','Aug','Sep','Okt','Nov','
