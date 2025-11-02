@@ -85,18 +85,8 @@
   <div id="tooltip" class="tooltip"></div>
 
   <script>
-    const exchangeRates = {
-      'SEK': 1, 'USD': 11.5, 'EUR': 12.3, 'GBP': 14.7, 'NOK': 1.25, 'DKK': 1.65
-    };
-
-    const currencyFlags = {
-      'SEK':'https://flagcdn.com/se.svg',
-      'USD':'https://flagcdn.com/us.svg',
-      'EUR':'https://flagcdn.com/eu.svg',
-      'GBP':'https://flagcdn.com/gb.svg',
-      'NOK':'https://flagcdn.com/no.svg',
-      'DKK':'https://flagcdn.com/dk.svg'
-    };
+    const exchangeRates = { 'SEK': 1, 'USD': 11.5, 'EUR': 12.3, 'GBP': 14.7, 'NOK': 1.25, 'DKK': 1.65 };
+    const currencyFlags = { 'SEK':'https://flagcdn.com/se.svg', 'USD':'https://flagcdn.com/us.svg', 'EUR':'https://flagcdn.com/eu.svg', 'GBP':'https://flagcdn.com/gb.svg', 'NOK':'https://flagcdn.com/no.svg', 'DKK':'https://flagcdn.com/dk.svg' };
 
     let portfolio = JSON.parse(localStorage.getItem('portfolio') || '[]');
 
@@ -106,9 +96,7 @@
     const tooltip = document.getElementById('tooltip');
     const form = document.getElementById('portfolioForm');
 
-    function savePortfolio() {
-      localStorage.setItem('portfolio', JSON.stringify(portfolio));
-    }
+    function savePortfolio() { localStorage.setItem('portfolio', JSON.stringify(portfolio)); }
 
     function renderTable() {
       tbody.innerHTML = '';
@@ -120,13 +108,9 @@
         const tr = document.createElement('tr');
         const annualSEK = item.shares * item.dividend * item.freq * exchangeRates[item.currency];
         const quarterlySEK = (item.freq === 4) ? (annualSEK / 4).toFixed(2) : '';
-
         const months = item.months.length > 0 ? item.months : Array.from({length: item.freq}, (_, i) => i);
-        months.forEach(m => {
-          monthTotals[m] += annualSEK / months.length;
-          monthDetails[m].push(`${item.company}: ${(annualSEK / months.length).toFixed(2)} SEK`);
-        });
 
+        months.forEach(m => { monthTotals[m] += annualSEK / months.length; monthDetails[m].push(`${item.company}: ${(annualSEK / months.length).toFixed(2)} SEK`); });
         const monthlyCellContent = (item.freq === 12) ? (annualSEK / 12).toFixed(2) : '';
 
         tr.innerHTML = `
@@ -142,26 +126,14 @@
 
         tbody.appendChild(tr);
 
-        tr.querySelector('.delete-btn').addEventListener('click', () => {
-          portfolio.splice(index, 1);
-          savePortfolio();
-          renderTable();
-        });
+        tr.querySelector('.delete-btn').addEventListener('click', () => { portfolio.splice(index, 1); savePortfolio(); renderTable(); });
 
         tr.querySelectorAll('.editable').forEach(cell => {
-          cell.addEventListener('keydown', e => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              const field = cell.dataset.field;
-              const newVal = parseFloat(cell.textContent);
-              if (!isNaN(newVal) && newVal >= 0) {
-                item[field] = newVal;
-                savePortfolio();
-                renderTable();
-              } else {
-                cell.textContent = item[field];
-              }
-            }
+          cell.addEventListener('input', () => { 
+            const field = cell.dataset.field;
+            const idx = parseInt(cell.dataset.index);
+            const newVal = parseFloat(cell.textContent);
+            if(!isNaN(newVal) && newVal >= 0) { portfolio[idx][field] = newVal; savePortfolio(); renderTable(); } 
           });
         });
 
@@ -169,8 +141,8 @@
       });
 
       totalCell.textContent = total.toFixed(2);
-
       monthSums.innerHTML = '';
       monthTotals.forEach((val, i) => {
         const monthDiv = document.createElement('div');
-        monthDiv.textContent = `${['Jan','Feb','Mar','Apr','Maj','Jun','Jul','Aug','Sep','Okt','Nov','
+        monthDiv.textContent = `${['Jan','Feb','Mar','Apr','Maj','Jun','Jul','Aug','Sep','Okt','Nov','Dec'][i]}: ${val.toFixed(2)} SEK`;
+        monthDiv.addEventListener('mouseenter', e => { tooltip.style.display='block'; tooltip.style.left=e.pageX+10+'px'; tooltip.style.top=e.pageY+10+'px'; tooltip.innerHTML = monthDetails[i].join('<
