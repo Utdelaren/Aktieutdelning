@@ -11,19 +11,20 @@
     input, select, button { padding:8px; border-radius:6px; border:1px solid #555; background:#2a2a2a; color:#fff; font-family:inherit; font-size:14px; }
     button { border:0; background:#2563eb; cursor:pointer; }
     table { width:100%; border-collapse:collapse; margin-top:10px; }
-    th, td { padding:8px; text-align:left; border-bottom:1px solid #333; }
+    th, td { padding:8px; text-align:left; border-bottom:1px solid #333; vertical-align:middle; }
     tfoot td { font-weight:bold; }
     .breakdown { margin-top:20px; padding:12px; background:#2a2a2a; border-radius:8px; }
-    .months-checkboxes { display:flex; flex-wrap:wrap; gap:5px; max-height:120px; overflow-y:auto; padding:4px; border:1px solid #555; border-radius:6px; background:#2a2a2a; }
-    .months-checkboxes label { font-size:14px; cursor:pointer; }
-    .flag-img { width:20px; height:14px; margin-right:6px; vertical-align:middle; }
-    .month-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; font-size:14px; }
-    .month-grid div { padding:4px; background:#3a3a3a; border-radius:4px; text-align:center; }
     .delete-btn { background:#dc2626; padding:4px 6px; border-radius:4px; cursor:pointer; color:#fff; border:none; }
     .editable { cursor:pointer; background-color:#2e2e2e; border-radius:4px; transition:background 0.2s, box-shadow 0.2s; position:relative; }
     .editable:hover { background-color:#3a3a3a; }
     .editable:focus { outline:none; background-color:#334155; box-shadow:0 0 0 2px #2563eb; }
     .editable::after { content:'✏️'; position:absolute; right:6px; top:4px; font-size:12px; opacity:0.6; }
+    .month-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; font-size:14px; }
+    .month-grid div { padding:4px; background:#3a3a3a; border-radius:4px; text-align:center; cursor:pointer; position:relative; }
+    .months-checkboxes { display:flex; flex-wrap:wrap; gap:5px; max-height:120px; overflow-y:auto; padding:4px; border:1px solid #555; border-radius:6px; background:#2a2a2a; margin-bottom:10px; }
+    .months-checkboxes label { font-size:14px; cursor:pointer; }
+    .tooltip { position:absolute; background:#2563eb; color:#fff; padding:6px 10px; border-radius:6px; display:none; z-index:10; font-size:13px; }
+    .flag { width:20px; height:14px; display:inline-block; margin-right:6px; vertical-align:middle; background-size:cover; border:1px solid #555; border-radius:2px; }
   </style>
 </head>
 <body>
@@ -67,12 +68,12 @@
   <table id="portfolioTable">
     <thead>
       <tr>
-        <th>Bolag</th><th>Antal ✏️</th><th>Utd/aktie ✏️</th><th>Utdelningar/år</th><th>Valuta</th><th>Årlig utdelning (SEK)</th><th>Månader</th><th>Ta bort</th>
+        <th>Bolag</th><th>Antal ✏️</th><th>Utd/aktie ✏️</th><th>Utdelningar/år</th><th>Valuta</th><th>Årlig utdelning (SEK)</th><th>Kvartal</th><th>Månad</th><th>Ta bort</th>
       </tr>
     </thead>
     <tbody></tbody>
     <tfoot>
-      <tr><td colspan="7" style="text-align:right">Totalt (SEK):</td><td id="total">0</td></tr>
+      <tr><td colspan="8" style="text-align:right">Totalt (SEK):</td><td id="total">0</td></tr>
     </tfoot>
   </table>
 
@@ -81,103 +82,95 @@
     <div id="monthSums" class="month-grid">Ingen data än.</div>
   </div>
 
-  <script>
-    const form = document.getElementById('portfolioForm');
-    const tbody = document.querySelector('#portfolioTable tbody');
-    const totalCell = document.getElementById('total');
-    const monthSums = document.getElementById('monthSums');
+  <div id="tooltip" class="tooltip"></div>
 
+  <script>
     const exchangeRates = {
-      'SEK': 1,
-      'USD': 11.0,
-      'EUR': 12.0,
-      'GBP': 14.0,
-      'NOK': 1.2,
-      'DKK': 1.6
+      'SEK': 1, 'USD': 11.5, 'EUR': 12.3, 'GBP': 14.7, 'NOK': 1.25, 'DKK': 1.65
     };
 
     const currencyFlags = {
-      'SEK': 'https://upload.wikimedia.org/wikipedia/en/4/4c/Flag_of_Sweden.svg',
-      'USD': 'https://upload.wikimedia.org/wikipedia/en/a/a4/Flag_of_the_United_States.svg',
-      'EUR': 'https://upload.wikimedia.org/wikipedia/commons/b/b7/Flag_of_Europe.svg',
-      'GBP': 'https://upload.wikimedia.org/wikipedia/en/a/ae/Flag_of_the_United_Kingdom.svg',
-      'NOK': 'https://upload.wikimedia.org/wikipedia/commons/d/d9/Flag_of_Norway.svg',
-      'DKK': 'https://upload.wikimedia.org/wikipedia/commons/0/0c/Flag_of_Denmark.svg'
+      'SEK':'https://flagcdn.com/se.svg',
+      'USD':'https://flagcdn.com/us.svg',
+      'EUR':'https://flagcdn.com/eu.svg',
+      'GBP':'https://flagcdn.com/gb.svg',
+      'NOK':'https://flagcdn.com/no.svg',
+      'DKK':'https://flagcdn.com/dk.svg'
     };
 
-    const monthNames = ['Jan','Feb','Mar','Apr','Maj','Jun','Jul','Aug','Sep','Okt','Nov','Dec'];
+    let portfolio = [];
 
-    const previousPortfolio = [
-      {company: 'ABB', shares: 10, dividend: 5, freq: 2, currency: 'SEK', months: [5,11]},
-      {company: 'Apple', shares: 5, dividend: 0.8, freq: 4, currency: 'USD', months: [2,5,8,11]}
-    ];
-
-    let portfolio = JSON.parse(localStorage.getItem('portfolio') || '[]');
-    if (portfolio.length === 0) {
-      portfolio = previousPortfolio.map(item => ({
-        ...item,
-        annualSEK: item.shares * item.dividend * item.freq * exchangeRates[item.currency]
-      }));
-      localStorage.setItem('portfolio', JSON.stringify(portfolio));
-    }
-
-    function savePortfolio() {
-      localStorage.setItem('portfolio', JSON.stringify(portfolio));
-    }
+    const tbody = document.querySelector('#portfolioTable tbody');
+    const totalCell = document.getElementById('total');
+    const monthSums = document.getElementById('monthSums');
+    const tooltip = document.getElementById('tooltip');
+    const form = document.getElementById('portfolioForm');
 
     function renderTable() {
       tbody.innerHTML = '';
       let total = 0;
       const monthTotals = Array(12).fill(0);
+      const monthDetails = Array.from({length:12}, () => []);
 
       portfolio.forEach((item, index) => {
         const tr = document.createElement('tr');
-        const flagImg = currencyFlags[item.currency] ? `<img src='${currencyFlags[item.currency]}' class='flag-img'>` : '';
+        const annualSEK = item.shares * item.dividend * item.freq * exchangeRates[item.currency];
+        const quarterlySEK = (item.freq === 4) ? (annualSEK / 4).toFixed(2) : '';
+
+        const months = item.months.length > 0 ? item.months : Array.from({length: item.freq}, (_, i) => i);
+        months.forEach(m => {
+          monthTotals[m] += annualSEK / months.length;
+          monthDetails[m].push(`${item.company}: ${(annualSEK / months.length).toFixed(2)} SEK`);
+        });
+
+        const monthlyCellContent = (item.freq === 12) ? (annualSEK / 12).toFixed(2) : '';
 
         tr.innerHTML = `
-          <td>${flagImg}${item.company}</td>
+          <td><span class='flag' style="background-image:url('${currencyFlags[item.currency]}')"></span>${item.company}</td>
           <td class='editable' data-field='shares' data-index='${index}' contenteditable='true'>${item.shares}</td>
           <td class='editable' data-field='dividend' data-index='${index}' contenteditable='true'>${item.dividend}</td>
           <td>${item.freq}/år</td>
           <td>${item.currency}</td>
-          <td data-sek='${item.annualSEK}'>${item.annualSEK.toFixed(2)}</td>
-          <td>${item.months.map(m => monthNames[m]).join(', ')}</td>
-          <td><button class='delete-btn'>Ta bort</button></td>
-        `;
+          <td>${annualSEK.toFixed(2)}</td>
+          <td>${quarterlySEK}</td>
+          <td>${monthlyCellContent}</td>
+          <td><button class='delete-btn'>Ta bort</button></td>`;
+
         tbody.appendChild(tr);
 
         tr.querySelector('.delete-btn').addEventListener('click', () => {
           portfolio.splice(index, 1);
-          savePortfolio();
           renderTable();
         });
 
         tr.querySelectorAll('.editable').forEach(cell => {
-          cell.addEventListener('keydown', (e) => {
+          cell.addEventListener('keydown', e => {
             if (e.key === 'Enter') {
               e.preventDefault();
               const field = cell.dataset.field;
               const newVal = parseFloat(cell.textContent);
-              if (!isNaN(newVal) && newVal >= 0) {
-                item[field] = newVal;
-                item.annualSEK = item.shares * item.dividend * item.freq * exchangeRates[item.currency];
-                savePortfolio();
-                renderTable();
-              } else {
-                cell.textContent = item[field];
-              }
+              if (!isNaN(newVal) && newVal >= 0) { item[field] = newVal; renderTable(); } else { cell.textContent = item[field]; }
             }
           });
         });
 
-        total += item.annualSEK;
-        item.months.forEach(m => monthTotals[m] += item.annualSEK / (item.months.length || 1));
+        total += annualSEK;
       });
 
       totalCell.textContent = total.toFixed(2);
+
       monthSums.innerHTML = '';
       monthTotals.forEach((val, i) => {
-        monthSums.innerHTML += `<div>${monthNames[i]}: ${val.toFixed(2)} SEK</div>`;
+        const monthDiv = document.createElement('div');
+        monthDiv.textContent = `${['Jan','Feb','Mar','Apr','Maj','Jun','Jul','Aug','Sep','Okt','Nov','Dec'][i]}: ${val.toFixed(2)} SEK`;
+        monthDiv.addEventListener('mouseenter', e => {
+          tooltip.style.display = 'block';
+          tooltip.style.left = e.pageX + 10 + 'px';
+          tooltip.style.top = e.pageY + 10 + 'px';
+          tooltip.innerHTML = monthDetails[i].join('<br>');
+        });
+        monthDiv.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
+        monthSums.appendChild(monthDiv);
       });
     }
 
@@ -190,16 +183,11 @@
       const currency = document.getElementById('currency').value;
       const monthCheckboxes = document.querySelectorAll('#months input[type=checkbox]:checked');
       const selectedMonths = Array.from(monthCheckboxes).map(cb => parseInt(cb.value));
-      const annualDiv = shares * dividend * freq;
-      const annualSEK = annualDiv * exchangeRates[currency];
 
-      portfolio.push({ company, shares, dividend, freq, currency, months: selectedMonths, annualSEK });
-      savePortfolio();
+      portfolio.push({ company, shares, dividend, freq, currency, months: selectedMonths });
       renderTable();
       form.reset();
     });
-
-    renderTable();
   </script>
 </body>
 </html>
